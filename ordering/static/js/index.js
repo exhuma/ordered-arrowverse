@@ -1,5 +1,14 @@
-(function($, Cookies) {
-    'use strict';
+/**
+ * An abstraction around persistent storage for user preferences.
+ * 
+ * The class provides static variables with the available keys and get/put
+ * functions to access the storage.
+ */
+class Config {
+    static WATCHED_EPISODES = "watchedEpisodes";
+    static HIDE_WATCHED = "hideWatched";
+
+    constructor (){}
 
     var openWiki = function() {
         var url = $(this).data('href');
@@ -7,12 +16,42 @@
     };
 
     /**
-     * key-names for local-storage data
+     * Retrieve a value from persistent user-storage.
+     * 
+     * @param {String} key The name/key of the config-value to retrieve
+     * @param {*} fallback The default value if the key was not yet set by the
+     *   user.
+     * @returns The value as defined by the user (or the default)
      */
-    let localStorageKeys = {
-        WATCHED_EPISODES: "watchedEpisodes",
-        CONFIG: "config",
-    };
+    get(key, fallback) {
+        // We want to allow "null" as fallback as well, so we have to use a
+        // sentinel-value to detect any "unset" config value. To keep
+        // JSON-conversion to a minimum, we keep two values
+        let nullSentinelJson = '"--config--null--sentinel--"'
+        let nullSentinel = "--config--null--sentinel--"
+        let value = JSON.parse(
+            localStorage.getItem(key) || nullSentinelJson
+        );
+        if (value === nullSentinel) {
+            return fallback;
+        }
+        return value
+    }
+
+    /**
+     * Sotre a new value into persistent user-config
+     * 
+     * @param {String} key The name/key of the config-value to store
+     * @param {*} value The value to store
+     */
+    put(key, value) {
+        localStorage.setItem(key, JSON.stringify(value))
+    }
+
+}
+
+(function($, Cookies) {
+    'use strict';
 
     /**
      * CSS class names used to change visual display of "watched" episodes
@@ -22,13 +61,7 @@
         FAINT: 'faint',
     };
 
-    /**
-     * Config values for the current running instance.
-     */
-    let instanceConfig = {
-        watchedEpisodesCssClass: watchedStateClasses.FAINT,
-    };
-
+    let config = new Config();
     var disableColours = function() {
         $('.episode, thead').addClass('no-color');
         $('#episode-list').addClass('table-striped table-hover');
@@ -85,20 +118,6 @@
     };
 
     /**
-     * Load config-values from localStorage into the "instanceConfig"
-     */
-    var loadConfig = function () {
-        let config = JSON.parse(
-            localStorage.getItem(localStorageKeys.CONFIG) || '{}'
-        );
-        if (config.hideWatched) {
-            instanceConfig.watchedEpisodesCssClass = watchedStateClasses.HIDDEN;
-        } else {
-            instanceConfig.watchedEpisodesCssClass = watchedStateClasses.FAINT;
-        }
-    };
-
-    /**
      * Convert the "data-series" and "data-episode-id" into a sinlge key for
      * LocalStorage.
      * 
@@ -121,29 +140,26 @@
     var updateWatched = function (evt) {
         let newValue = evt.target.checked;
         let key = getLSEpisodeKey(evt.target);
-        let watchedEpisodes = JSON.parse(
-            localStorage.getItem(localStorageKeys.WATCHED_EPISODES) || "[]"
-        );
+        let watchedEpisodes = config.get(Config.WATCHED_EPISODES, []);
         let index = watchedEpisodes.indexOf(key)
         if (newValue === true && index === -1) {
             watchedEpisodes.push(key);
         } else if (newValue === false && index !== -1) {
             watchedEpisodes.splice(index, 1);
         }
-        localStorage.setItem(
-            localStorageKeys.WATCHED_EPISODES, JSON.stringify(watchedEpisodes)
-        );
-        setWatchedDisplayState(instanceConfig.watchedEpisodesCssClass);
+        config.put(Config.WATCHED_EPISODES, watchedEpisodes);
+        setWatchedDisplayState(config.get(Config.HIDE_WATCHED, true));
     };
 
     /**
      * Hide/Show episodes, according to the "watched" state
      * 
-     * @param {String} watchedClass The CSS class to apply for "watched" episodes
+     * @param {Boolean} doHide Whether to hide the rows or not
      */
-    var setWatchedDisplayState = function (watchedClass) {
-        let watchedEpisodes = JSON.parse(
-            localStorage.getItem(localStorageKeys.WATCHED_EPISODES) || "[]"
+    var setWatchedDisplayState = function (doHide) {
+        let watchedEpisodes = config.get(Config.WATCHED_EPISODES, []);
+        let watchedClass = (
+            doHide ? watchedStateClasses.HIDDEN : watchedStateClasses.FAINT
         );
         $('.episode').map(function() {
             let key = getLSEpisodeKey(this);
@@ -163,23 +179,17 @@
 
         $('#show-watched').click(function() {
             let linkText;
-            let hideWatched;
-            if (instanceConfig.watchedEpisodesCssClass === watchedStateClasses.FAINT) {
-                instanceConfig.watchedEpisodesCssClass = watchedStateClasses.HIDDEN;
-                linkText = "SHOW WATCHED";
-                hideWatched = true;
-            } else {
-                instanceConfig.watchedEpisodesCssClass = watchedStateClasses.FAINT;
+            let newState;
+            let currentState = config.get(Config.HIDE_WATCHED, true);
+            if (currentState) {
                 linkText = "HIDE WATCHED";
-                hideWatched = false;
+                newState = false;
+            } else {
+                linkText = "SHOW WATCHED";
+                newState = true;
             }
-            let config = JSON.parse(
-                localStorage.getItem(localStorageKeys.CONFIG) || "{}"
-            );
-            config.hideWatched = hideWatched;
-            localStorage.setItem(localStorageKeys.CONFIG, JSON.stringify(config))
-
-            setWatchedDisplayState(instanceConfig.watchedEpisodesCssClass);
+            config.put(Config.HIDE_WATCHED, newState);
+            setWatchedDisplayState(config.get(Config.HIDE_WATCHED, true));
 
             // Accessing "firstChild.innerHTML" is brittle. But I deemed this an
             // acceptable trade-off to keep code-churn minimal (unless I missed
@@ -216,7 +226,6 @@
     };
 
     $(document).ready(function() {
-        loadConfig();
         $('#show-filter-select').select2({
           placeholder: 'Select shows to exclude...',
           allowClear: true,
@@ -224,7 +233,7 @@
           width: '100%',
         });
         registerListeners();
-        setWatchedDisplayState(instanceConfig.watchedEpisodesCssClass);
+        setWatchedDisplayState(config.get(Config.HIDE_WATCHED, true));
 
         var colourSetting = Cookies.get('colour');
         if (colourSetting === undefined) {
