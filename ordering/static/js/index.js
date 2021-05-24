@@ -6,6 +6,9 @@
         window.open(url, '_blank');
     };
 
+    /**
+     * key-names for local-storage data
+     */
     let localStorageKeys = {
         WATCHED_EPISODES: "watchedEpisodes",
     };
