@@ -3,9 +3,12 @@ name = "ordered-arrowverse"
 version = "1.1.5"
 description = "A listing of all shows in the Arrowverse in watch order to ensure continuity and sensible ordering for crossover episodes"
 authors = ["Jethro Muller"]
+packages = [
+    { include = "ordering" },
+]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 beautifulsoup4 = "^4.9"
 certifi = "^2020.6"
 cssmin = "^0.2.0"
