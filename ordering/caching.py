@@ -31,7 +31,11 @@ def safe_cache_content(timeout=None, backup=False, hash_args=False):
 
             cache_key = f'{func.__name__}-{inputs}'
 
-            cached_value = cache.get(cache_key)
+            try:
+                cached_value = cache.get(cache_key)
+            except:
+                logger.exception("Unable to retrieve cached value")
+                cached_value = None
             if cached_value:
                 return orjson.loads(cached_value.decode('utf-8'))
 
@@ -48,10 +52,16 @@ def safe_cache_content(timeout=None, backup=False, hash_args=False):
                 return orjson.loads(cached_json_lts_response.decode('utf-8'))
             else:
                 json_response = serialized_response(response)
-                cache.set(cache_key, json_response, ex=timeout)
+                try:
+                    cache.set(cache_key, json_response, ex=timeout)
+                except:
+                    logger.exception("Unable to put value into cache")
 
                 if backup:
-                    cache.set(f'{cache_key}-backup', json_response)
+                    try:
+                        cache.set(f'{cache_key}-backup', json_response)
+                    except:
+                        logger.exception("Unable to put value into cache")
 
                 return response
 
