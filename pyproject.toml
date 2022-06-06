@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "ordered-arrowverse"
+name = "ordering"
 version = "1.1.5"
 description = "A listing of all shows in the Arrowverse in watch order to ensure continuity and sensible ordering for crossover episodes"
 authors = ["Jethro Muller"]
