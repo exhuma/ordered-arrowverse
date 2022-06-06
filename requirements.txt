@@ -19,7 +19,7 @@ hpack==4.0.0
 htmlmin==0.1.12
 hypercorn==0.11.2
 hyperframe==6.0.0
-idna==2.10
+idna==3.3
 iso8601==0.1.13
 itsdangerous==1.1.0
 jinja2==2.11.2
