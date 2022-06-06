@@ -1,4 +1,4 @@
-aiofiles==0.6.0
+aiofiles==0.8.0
 aiosqlite==0.16.1
 asyncpg==0.20.1
 beautifulsoup4==4.9.3
